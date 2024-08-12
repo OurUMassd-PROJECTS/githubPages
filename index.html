@@ -8,20 +8,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
     <title>MA Map</title>
     <style>
-        h1, h3{
-            font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        h1, h3 {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 10px;
         }
 
-        .container h3{
+        .container h3 {
             margin-bottom: 20px;
         }
 
         #tooltip {
             position: absolute;
             opacity: 0;
-            top: 0;
-            left: 0;
             width: auto;
             padding: 10px;
             background: white;
@@ -29,20 +27,20 @@
             font-size: medium;
             border-radius: 2px;
             line-height: 1;
+            pointer-events: none;
         }
         
         path {
-            stroke-width: .5px;
-            stroke: black
+            stroke-width: 0.5px;
+            stroke: black;
         }
         
         path:hover {
-            opacity: .6;
-            stroke: black;
+            opacity: 0.6;
             stroke-width: 4px;
         }
 
-        .container{
+        .container {
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -54,142 +52,49 @@
 <body>
     <div id="tooltip"></div>
     <div class="container">
-        <!-- Title goes here -->
         <h1>Geospatial Visualization</h1>
         <h3>Vinay Shetye - {02018051}</h3>
-        <!-- Name goes here -->
         <div class="fig1"></div>
         <div class="fig2"></div>
         <div class="fig3"></div>
-
     </div>
 
     <script>
-        /*-------------------------------------------------------*/
-        /*------------------- Window setting --------------------*/
-        /*-------------------------------------------------------*/
-        // dimension of the page
-        const window_dims = {
+        // Dimensions of the page
+        const windowDims = {
             width: window.innerWidth,
             height: window.innerHeight
         };
 
-        const svgWidth = window_dims.width/2;
-        const svgHeight = window_dims.width/3;
+        const svgWidth = windowDims.width / 2;
+        const svgHeight = windowDims.width / 3;
 
-        /*-------------------------------------------------------*/
-        /*-----------------parallel load data--------------------*/
-        /*-------------------------------------------------------*/
+        // Data URLs
+        const MA_COUNTIES = "https://raw.githubusercontent.com/umassdgithub/Fall-2023-DataViz/main/Major-Assignment-2/data/towns.topojson";
+        const GINI_INDEX = "https://raw.githubusercontent.com/umassdgithub/Fall-2023-DataViz/main/Major-Assignment-2/data/gini_index.csv";
 
-        // A Topojson file containing population of each town in different years
-        const MA_counties = "https://raw.githubusercontent.com/umassdgithub/Fall-2023-DataViz/main/Major-Assignment-2/data/towns.topojson";
+        const countyData = [
+            { "county": "Barnstable County", "fips_code": 25001 },
+            { "county": "Berkshire County", "fips_code": 25003 },
+            { "county": "Bristol County", "fips_code": 25005 },
+            { "county": "Dukes County", "fips_code": 25007 },
+            { "county": "Essex County", "fips_code": 25009 },
+            { "county": "Franklin County", "fips_code": 25011 },
+            { "county": "Hampden County", "fips_code": 25013 },
+            { "county": "Hampshire County", "fips_code": 25015 },
+            { "county": "Middlesex County", "fips_code": 25017 },
+            { "county": "Nantucket County", "fips_code": 25019 },
+            { "county": "Norfolk County", "fips_code": 25021 },
+            { "county": "Plymouth County", "fips_code": 25023 },
+            { "county": "Suffolk County", "fips_code": 25025 },
+            { "county": "Worcester County", "fips_code": 25027 }
+        ];
 
-        // Gini Index per county
-        const gini_index = "https://raw.githubusercontent.com/umassdgithub/Fall-2023-DataViz/main/Major-Assignment-2/data/gini_index.csv";
-
-        const countyData = [ { "county": "Barnstable County", "fips_code": 25001 }, { "county": "Berkshire County", "fips_code": 25003 }, { "county": "Bristol County", "fips_code": 25005 }, { "county": "Dukes County", "fips_code": 25007 }, { "county": "Essex County", "fips_code": 25009 }, { "county": "Franklin County", "fips_code": 25011 }, { "county": "Hampden County", "fips_code": 25013 }, { "county": "Hampshire County", "fips_code": 25015 }, { "county": "Middlesex County", "fips_code": 25017 }, { "county": "Nantucket County", "fips_code": 25019 }, { "county": "Norfolk County", "fips_code": 25021 }, { "county": "Plymouth County", "fips_code": 25023 }, { "county": "Suffolk County", "fips_code": 25025 }, { "county": "Worcester County", "fips_code": 25027 } ];
-
-        // Opening both files
+        // Load data
         Promise.all([
-            d3.json(MA_counties),
-            d3.csv(gini_index)
-        ]).then(data =>
-        {
-            // Topology Data
-            const topology_data = data[0];
-            // Gini Index Data
-            const csv_data = data[1];
-
-
-            /*----------------- [MAP 1 - Population Display] START -----------------*/
-            const generateMap1 = (topo_data,containerName,width,height,margin=30)=> {
-                const svg = d3.select(containerName).append("svg")
-                    .attr("width", width)
-                    .attr("height", height);
-
-            /*-------------------------------------------------------*/
-            /*-----------------Topojson data handling----------------*/
-            /*-------------------------------------------------------*/
-            // if topojson file is imported we need to 
-            // convert topology data to geojson 
-            const geojson = topojson.feature(topo_data, topo_data.objects.ma);
-
-            /*-------------------------------------------------------*/
-            /*----------------------Projections----------------------*/
-            /*-------------------------------------------------------*/
-            const projections = [
-                d3.geoAzimuthalEqualArea(), //Azimuthal projections project the sphere directly onto a plane.
-                d3.geoAlbersUsa(), // USA conic projection
-                d3.geoAlbers(), // equal-area conic projection
-                d3.geoMercator(), // cylindrical projection
-                d3.geoNaturalEarth1(), // pseudocylindrical projection designed by Tom Patterson
-                d3.geoEqualEarth(), // Equal Earth projection, by Bojan Ã…Â avriÃ„Â et al., 2018.
-                d3.geoConicEqualArea(), //equal-area conic projection
-                d3.geoEquirectangular(), //Cylindrical Projections
-                d3.geoOrthographic()
-            ]
-            /*-------------------------------------------------------*/
-            /*----------------geoPath generator----------------------*/
-            /*-------------------------------------------------------*/
-
-            const geoPath_generator = d3.geoPath()
-                .projection(projections[3].fitSize([width-margin,height-margin], geojson))
-            /*-------------------------------------------------------*/
-            /*----------------------Color Scaling--------------------*/
-            /*-------------------------------------------------------*/
-            //https://observablehq.com/@d3/working-with-color
-            //https://colorbrewer2.org/#type=diverging&scheme=RdYlBu&n=6
-            const colorInterpolator = d3.interpolateRgbBasis(['#d73027','#fc8d59','#fee090','#e0f3f8','#91bfdb','#4575b4'].reverse())
-                // if the data is scaled using log scale
-            const logScale = d3.scaleLog()
-                .domain(d3.extent(geojson.features, (d) => {
-                    return d['properties']['POP2010']
-                }))
-            // if the data is scaled using linear scale
-            const linearScale = d3.scaleLinear()
-                .domain(d3.extent(geojson.features, (d) => {
-                    return d['properties']['POP2010']
-                }))
-            /*-------------------------------------------------------*/
-            /*---------------------- Tooltip ------------------------*/
-            /*-------------------------------------------------------*/
-            const tooltip = d3.select("#tooltip");
-            /*--------------------------------------------------------*/
-            /*----------------- channelling marks --------------------*/
-            /*--------------------------------------------------------*/
-
-            svg.selectAll("path")
-                .data(geojson.features)
-                .enter()
-                .append("path")
-                .attr("d", d => geoPath_generator(d))
-                .attr("fill", d => colorInterpolator(logScale(d['properties']['POP2010'])))
-                .attr("fill", d => colorInterpolator(linearScale(d['properties']['POP2010'])))
-                // Modify the tooltip to display population in 1980
-                .on("mouseenter", (m, d) => {
-                    tooltip.transition()
-                        .duration(200)
-                        .style("opacity", .9);
-                    tooltip.html(`Town: ${d.properties.TOWN}<br>Population in 1980: ${d.properties.POP1980}`)
-                        .style("left", m.clientX + "px")
-                        .style("top", m.clientY + "px");
-                })
-                .on("mouseout", (m, d) => {
-                    tooltip.transition()
-                            .duration(400)
-                            .style("opacity", 0);
-                    });
-            
-            }
-
-            generateMap1(topology_data,".fig1",svgWidth,svgHeight)
-
-            /*----------------- [MAP 1 - Population Display] END -----------------*/
-
-
-            /*----------------- [MAP 2 - Population Change Display] START -----------------*/
-
-            // Define projections at the global scope
+            d3.json(MA_COUNTIES),
+            d3.csv(GINI_INDEX)
+        ]).then(([topologyData, csvData]) => {
             const projections = [
                 d3.geoAzimuthalEqualArea(),
                 d3.geoAlbersUsa(),
@@ -202,128 +107,134 @@
                 d3.geoOrthographic()
             ];
 
-            // DefinING a function to generate the second geospatial map
-            function generateMap2(topo_data, containerName, width, height, margin = 30) {
-                const svg = d3.select(containerName).append("svg")
+            // Map 1: Population Display
+            function generateMap1(data, container, width, height, margin = 30) {
+                const svg = d3.select(container).append("svg")
                     .attr("width", width)
                     .attr("height", height);
 
-                // ConvertING topology data to geojson
-                const geojson2 = topojson.feature(topo_data, topo_data.objects.ma);
+                const geojson = topojson.feature(data, data.objects.ma);
 
-                // DefinING a projection for the second map
-                const projection2 = d3.geoMercator()
-                    .fitSize([width - margin, height - margin], geojson2);
+                const projection = d3.geoMercator()
+                    .fitSize([width - margin, height - margin], geojson);
 
-                // CreatING a path generator for the second map
-                const geoPath_generator2 = d3.geoPath()
-                    .projection(projection2);
+                const geoPathGenerator = d3.geoPath().projection(projection);
 
-                // Defining a color scale for the population change
-                const populationChangeScale = d3.scaleSequential()
-                    .domain([0, d3.max(geojson2.features, (d) => Math.abs(d.properties.POPCH00_10))])
-                    .interpolator(d3.interpolateRdYlBu);
+                const colorInterpolator = d3.interpolateRgbBasis(['#d73027','#fc8d59','#fee090','#e0f3f8','#91bfdb','#4575b4'].reverse());
+                const populationScale = d3.scaleLog()
+                    .domain(d3.extent(geojson.features, d => d.properties.POP2010));
 
-                // Creating a tooltip for the second map
-                const tooltip2 = d3.select("#tooltip");
+                const tooltip = d3.select("#tooltip");
 
-                // Rendering the second map
                 svg.selectAll("path")
-                    .data(geojson2.features)
+                    .data(geojson.features)
                     .enter()
                     .append("path")
-                    .attr("d", (d) => geoPath_generator2(d))
-                    .attr("fill", (d) => populationChangeScale(Math.abs(d.properties.POPCH00_10)))
+                    .attr("d", geoPathGenerator)
+                    .attr("fill", d => colorInterpolator(populationScale(d.properties.POP2010)))
                     .on("mouseenter", (event, d) => {
-                        tooltip2.transition()
-                            .duration(200)
-                            .style("opacity", 0.9);
-                        tooltip2.html(`Town: ${d.properties.TOWN}<br>Population Change (2000-2010): ${Math.abs(d.properties.POPCH00_10)}`)
-                            .style("left", (event.clientX + 10) + "px")
-                            .style("top", (event.clientY + 10) + "px");
-                    })
-                    .on("mousemove", (event, d) => {
-                        tooltip2.style("left", (event.clientX - 5) + "px")
-                                .style("top", (event.clientY + 340) + "px");
+                        tooltip.transition().duration(200).style("opacity", 0.9);
+                        tooltip.html(`Town: ${d.properties.TOWN}<br>Population in 1980: ${d.properties.POP1980}`)
+                            .style("left", event.clientX + "px")
+                            .style("top", event.clientY + "px");
                     })
                     .on("mouseout", () => {
-                        tooltip2.transition()
-                            .duration(400)
-                            .style("opacity", 0);
+                        tooltip.transition().duration(400).style("opacity", 0);
                     });
             }
 
-            // Calling the function to generate the second map
-            generateMap2(topology_data, ".fig2", svgWidth, svgHeight);
+            generateMap1(topologyData, ".fig1", svgWidth, svgHeight);
 
-            /*----------------- [MAP 2 - Population Change Display] END -----------------*/
+            // Map 2: Population Change Display
+            function generateMap2(data, container, width, height, margin = 30) {
+                const svg = d3.select(container).append("svg")
+                    .attr("width", width)
+                    .attr("height", height);
 
+                const geojson = topojson.feature(data, data.objects.ma);
 
-            /*----------------- [MAP 3 - Map by County colors] START -----------------*/
+                const projection = d3.geoMercator()
+                    .fitSize([width - margin, height - margin], geojson);
 
-            const countyColorScale = d3.scaleOrdinal()
-            .domain(countyData.map(d => d.fips_code))
-            .range(d3.schemeCategory10); 
+                const geoPathGenerator = d3.geoPath().projection(projection);
 
-            // Adding a function to get the county color based on FIPS code
-            function getCountyColor(fips_code) {
-                return countyColorScale(fips_code);
-            }
-            
+                const populationChangeScale = d3.scaleSequential()
+                    .domain([0, d3.max(geojson.features, d => Math.abs(d.properties.POPCH00_10))])
+                    .interpolator(d3.interpolateRdYlBu);
 
-            function generateCountyMap(topo_data, containerName, width, height, margin = 30) {
-            const svg = d3.select(containerName).append("svg")
-                .attr("width", width)
-                .attr("height", height);
+                const tooltip = d3.select("#tooltip");
 
-            const geojson = topojson.feature(topo_data, topo_data.objects.ma);
-
-            const projection = d3.geoMercator()
-                .fitSize([width - margin, height - margin], geojson);
-
-            const geoPath_generator = d3.geoPath()
-                .projection(projection);
-
-            svg.selectAll("path")
-                .data(geojson.features)
-                .enter()
-                .append("path")
-                .attr("d", d => geoPath_generator(d))
-                .attr("fill", d => getCountyColor(d.properties.FIPS_STCO))
-                .on("mouseenter", (event, d) => {
-                    tooltip.transition()
-                        .duration(200)
-                        .style("opacity", 0.9);
-                    const countyName = countyData.find(c => c.fips_code === d.properties.FIPS_STCO).county;
-                    const townName = d.properties.TOWN; // Add this line to get the town name
-                    tooltip.html(`Town: ${townName}<br>County: ${countyName}`) // Update tooltip to show both names
-                        .style("left", (event.clientX + 10) + "px")
-                        .style("top", (event.clientY + 50) + "px");
-                })
-                .on("mousemove", (event, d) => {
-                    tooltip.style("left", (event.clientX - 5) + "px")
-                        .style("top", (event.clientY + 800) + "px");
-                })
-                .on("mouseout", () => {
-                    tooltip.transition()
-                        .duration(400)
-                        .style("opacity", 0);
-                });
+                svg.selectAll("path")
+                    .data(geojson.features)
+                    .enter()
+                    .append("path")
+                    .attr("d", geoPathGenerator)
+                    .attr("fill", d => populationChangeScale(Math.abs(d.properties.POPCH00_10)))
+                    .on("mouseenter", (event, d) => {
+                        tooltip.transition().duration(200).style("opacity", 0.9);
+                        tooltip.html(`Town: ${d.properties.TOWN}<br>Population Change (2000-2010): ${Math.abs(d.properties.POPCH00_10)}`)
+                            .style("left", (event.clientX + 10) + "px")
+                            .style("top", (event.clientY + 10) + "px");
+                    })
+                    .on("mousemove", (event) => {
+                        tooltip.style("left", (event.clientX + 10) + "px")
+                            .style("top", (event.clientY + 10) + "px");
+                    })
+                    .on("mouseout", () => {
+                        tooltip.transition().duration(400).style("opacity", 0);
+                    });
             }
 
+            generateMap2(topologyData, ".fig2", svgWidth, svgHeight);
 
-            // Calling the function to generate the county map
-            generateCountyMap(topology_data, ".fig3", svgWidth, svgHeight);
+            // Map 3: Map by County Colors
+            function generateCountyMap(data, container, width, height, margin = 30) {
+                const svg = d3.select(container).append("svg")
+                    .attr("width", width)
+                    .attr("height", height);
 
+                const geojson = topojson.feature(data, data.objects.ma);
 
-            // Adding this line at the beginning of your script
-            const tooltip = d3.select("#tooltip");
+                const projection = d3.geoMercator()
+                    .fitSize([width - margin, height - margin], geojson);
 
-            /*----------------- [MAP 3 - Map by County colors] END -----------------*/
+                const geoPathGenerator = d3.geoPath().projection(projection);
 
-        })
+                const countyColorScale = d3.scaleOrdinal()
+                    .domain(countyData.map(d => d.fips_code))
+                    .range(d3.schemeCategory10);
+
+                function getCountyColor(fips_code) {
+                    return countyColorScale(fips_code);
+                }
+
+                const tooltip = d3.select("#tooltip");
+
+                svg.selectAll("path")
+                    .data(geojson.features)
+                    .enter()
+                    .append("path")
+                    .attr("d", geoPathGenerator)
+                    .attr("fill", d => getCountyColor(d.properties.FIPS_STCO))
+                    .on("mouseenter", (event, d) => {
+                        tooltip.transition().duration(200).style("opacity", 0.9);
+                        tooltip.html(`County: ${d.properties.COUNTY}`)
+                            .style("left", (event.clientX + 10) + "px")
+                            .style("top", (event.clientY + 10) + "px");
+                    })
+                    .on("mousemove", (event) => {
+                        tooltip.style("left", (event.clientX + 10) + "px")
+                            .style("top", (event.clientY + 10) + "px");
+                    })
+                    .on("mouseout", () => {
+                        tooltip.transition().duration(400).style("opacity", 0);
+                    });
+            }
+
+            generateCountyMap(topologyData, ".fig3", svgWidth, svgHeight);
+        }).catch(error => {
+            console.error("Error loading data:", error);
+        });
     </script>
 </body>
-
 </html>
-
